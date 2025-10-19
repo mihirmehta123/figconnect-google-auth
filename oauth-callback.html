@@ -159,16 +159,26 @@
             // Try multiple methods to communicate with parent window
             let messageSent = false;
             
-            // Method 1: Try window.opener.postMessage
+            // Method 1: Try window.opener.postMessage with retry
             try {
                 if (window.opener && !window.opener.closed) {
                     console.log('Method 1: Sending via window.opener.postMessage');
-                    window.opener.postMessage({
-                        type: 'oauth-success',
-                        data: authData
-                    }, '*');
+                    
+                    // Try multiple times with delays
+                    for (let i = 0; i < 3; i++) {
+                        setTimeout(() => {
+                            try {
+                                window.opener.postMessage({
+                                    type: 'oauth-success',
+                                    data: authData
+                                }, '*');
+                                console.log(`Message sent via window.opener (attempt ${i + 1})`);
+                            } catch (e) {
+                                console.log(`Method 1 attempt ${i + 1} failed:`, e);
+                            }
+                        }, i * 500);
+                    }
                     messageSent = true;
-                    console.log('Message sent via window.opener');
                 }
             } catch (e) {
                 console.log('Method 1 failed:', e);
@@ -217,20 +227,33 @@
             
             if (messageSent) {
                 showSuccess();
+                // Try to close the window after a longer delay to ensure messages are sent
+                setTimeout(() => {
+                    try {
+                        window.close();
+                    } catch (e) {
+                        console.log('Could not auto-close window:', e);
+                    }
+                }, 5000);
             } else {
-                // Show success with instructions to close
-                showSuccess();
-                document.getElementById('success').innerHTML = '<div class="success">✓ Authentication successful!</div><div class="message">Please close this window to complete login.</div>';
-            }
-            
-            // Try to close the window after a short delay
-            setTimeout(() => {
+                // Since storage is disabled in data: URLs, we need a different approach
+                console.log('All communication methods failed, trying URL parameter approach...');
+                
+                // Create a redirect URL that will trigger the main plugin to check for auth data
+                // We'll encode the auth data in the URL fragment
+                const authDataEncoded = encodeURIComponent(JSON.stringify(authData));
+                const redirectUrl = 'data:text/html,<html><body><script>parent.postMessage({type:"oauth-success",data:' + JSON.stringify(authData) + '},"*");setTimeout(()=>window.close(),100);</script></body></html>';
+                
                 try {
-                    window.close();
+                    console.log('Attempting redirect with auth data...');
+                    window.location.href = redirectUrl;
                 } catch (e) {
-                    console.log('Could not auto-close window:', e);
+                    console.log('Redirect failed:', e);
+                    // Show success with instructions to close
+                    showSuccess();
+                    document.getElementById('success').innerHTML = '<div class="success">✓ Authentication successful!</div><div class="message">Please close this window to complete login.</div>';
                 }
-            }, 2000);
+            }
         } else {
             showError('No authentication data received. Check console for details.');
         }
