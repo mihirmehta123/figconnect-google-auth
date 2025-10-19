@@ -81,12 +81,15 @@
         
         // If no query params, try URL fragment (hash)
         if (!accessToken && window.location.hash) {
-            const hashParams = new URLSearchParams(window.location.hash.substring(1));
-            accessToken = hashParams.get('access_token');
-            refreshToken = hashParams.get('refresh_token');
-            error = hashParams.get('error');
-            errorDescription = hashParams.get('error_description');
-            urlParams = hashParams;
+            // Remove the # from the hash and parse as URLSearchParams
+            const hashString = window.location.hash.substring(1);
+            console.log('Hash string:', hashString);
+            urlParams = new URLSearchParams(hashString);
+            accessToken = urlParams.get('access_token');
+            refreshToken = urlParams.get('refresh_token');
+            error = urlParams.get('error');
+            errorDescription = urlParams.get('error_description');
+            console.log('Parsed from hash - access_token:', accessToken ? 'Found' : 'Not found');
         }
 
         // Debug: Log all URL parameters
@@ -100,13 +103,14 @@
         
         // Also display debug info on the page
         const debugInfo = document.createElement('div');
-        debugInfo.style.cssText = 'position: fixed; top: 10px; left: 10px; background: #f0f0f0; padding: 10px; border: 1px solid #ccc; font-family: monospace; font-size: 12px; z-index: 1000; max-width: 300px;';
+        debugInfo.style.cssText = 'position: fixed; top: 10px; left: 10px; background: #f0f0f0; padding: 10px; border: 1px solid #ccc; font-family: monospace; font-size: 12px; z-index: 1000; max-width: 400px;';
         debugInfo.innerHTML = `
             <strong>Debug Info:</strong><br>
             URL: ${window.location.href}<br>
             Query Params: ${window.location.search || 'None'}<br>
-            Hash Fragment: ${window.location.hash || 'None'}<br>
-            Access Token: ${accessToken ? 'Present' : 'Missing'}<br>
+            Hash Fragment: ${window.location.hash ? window.location.hash.substring(0, 100) + '...' : 'None'}<br>
+            Access Token: ${accessToken ? 'Present (' + accessToken.substring(0, 20) + '...)' : 'Missing'}<br>
+            Refresh Token: ${refreshToken ? 'Present' : 'Missing'}<br>
             Error: ${error || 'None'}<br>
             Error Desc: ${errorDescription || 'None'}
         `;
