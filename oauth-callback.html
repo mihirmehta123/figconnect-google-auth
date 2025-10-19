@@ -296,47 +296,71 @@
                 console.log('Could not store in window.name:', e);
             }
             
-            // Add click handler for the button
+            // Show alert asking to open Figma
             setTimeout(() => {
-                const btn = document.getElementById('open-figma-btn');
-                if (btn) {
-                    btn.onclick = function() {
-                        console.log('Opening Figma with auth data...');
-                        
-                        // Try to trigger the opener to process the auth data
-                        try {
-                            if (window.opener && !window.opener.closed) {
-                                window.opener.focus();
-                                window.opener.postMessage({
-                                    type: 'oauth-success',
-                                    data: authData
-                                }, '*');
-                                
-                                // Try to call a function directly
-                                if (window.opener.processGoogleAuthResult) {
-                                    window.opener.processGoogleAuthResult(authData);
-                                }
-                            }
-                        } catch (e) {
-                            console.log('Could not communicate with opener:', e);
+                // Show alert dialog
+                if (confirm('Authentication successful! Click OK to open Figma and complete the login process.')) {
+                    console.log('User clicked OK, opening Figma app...');
+                    
+                    // Try to send auth data to opener before opening Figma
+                    try {
+                        if (window.opener && !window.opener.closed) {
+                            window.opener.figmaOAuthData = authData;
+                            window.opener.postMessage({
+                                type: 'oauth-success',
+                                data: authData
+                            }, '*');
+                            console.log('Sent auth data to opener');
                         }
-                        
-                        btn.textContent = '✓ Returning to Figma...';
-                        btn.disabled = true;
-                        btn.style.opacity = '0.7';
-                        
-                        setTimeout(() => {
-                            try {
-                                window.close();
-                            } catch (e) {
-                                document.getElementById('success').innerHTML += '<p style="color: #666; margin-top: 10px;">Please close this window manually.</p>';
-                            }
-                        }, 1000);
-                    };
+                    } catch (e) {
+                        console.log('Could not communicate with opener:', e);
+                    }
+                    
+                    // Open Figma app using figma:// URL scheme
+                    // This will open the Figma desktop app
+                    window.location.href = 'figma://';
+                    
+                    // Update the UI
+                    document.getElementById('success').innerHTML = `
+                        <div class="success">✓ Opening Figma...</div>
+                        <div class="message">
+                            <p><strong>If Figma didn't open automatically:</strong></p>
+                            <ol>
+                                <li>Open Figma manually</li>
+                                <li>Go back to your plugin</li>
+                                <li>You should be logged in</li>
+                            </ol>
+                            <p>You can close this window now.</p>
+                        </div>
+                    `;
+                    
+                    // Try to close the window after a delay
+                    setTimeout(() => {
+                        try {
+                            window.close();
+                        } catch (e) {
+                            console.log('Could not auto-close window');
+                        }
+                    }, 2000);
+                } else {
+                    console.log('User cancelled, showing manual instructions');
+                    // User clicked Cancel, show manual instructions
+                    document.getElementById('success').innerHTML = `
+                        <div class="success">✓ Authentication successful!</div>
+                        <div class="message">
+                            <p><strong>Please return to Figma manually:</strong></p>
+                            <ol>
+                                <li>Open Figma</li>
+                                <li>Go back to your plugin</li>
+                                <li>You should be logged in</li>
+                            </ol>
+                            <p>You can close this window now.</p>
+                        </div>
+                    `;
                 }
-            }, 100);
+            }, 500);
             
-            console.log('Authentication complete. User should click button to return to Figma.');
+            console.log('Authentication complete. Will show alert to open Figma.');
         } else {
             showError('No authentication data received. Check console for details.');
         }
