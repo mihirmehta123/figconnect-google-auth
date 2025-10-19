@@ -67,39 +67,53 @@
 
     <script>
         // Parse URL parameters - check both query params and fragments
-        let urlParams;
-        let accessToken, refreshToken, error, errorDescription;
+        let urlParams = new URLSearchParams();
+        let accessToken = null;
+        let refreshToken = null;
+        let error = null;
+        let errorDescription = null;
+        
+        console.log('Starting OAuth callback parsing...');
+        console.log('window.location.search:', window.location.search);
+        console.log('window.location.hash:', window.location.hash);
         
         // First try query parameters
         if (window.location.search) {
+            console.log('Parsing query parameters...');
             urlParams = new URLSearchParams(window.location.search);
             accessToken = urlParams.get('access_token');
             refreshToken = urlParams.get('refresh_token');
             error = urlParams.get('error');
             errorDescription = urlParams.get('error_description');
+            console.log('Query params - access_token:', accessToken ? 'Found' : 'Not found');
         }
         
-        // If no query params, try URL fragment (hash)
+        // If no access token from query params, try URL fragment (hash)
         if (!accessToken && window.location.hash) {
+            console.log('Parsing URL fragment (hash)...');
             // Remove the # from the hash and parse as URLSearchParams
             const hashString = window.location.hash.substring(1);
-            console.log('Hash string:', hashString);
+            console.log('Hash string length:', hashString.length);
+            console.log('Hash string preview:', hashString.substring(0, 100) + '...');
+            
             urlParams = new URLSearchParams(hashString);
             accessToken = urlParams.get('access_token');
             refreshToken = urlParams.get('refresh_token');
             error = urlParams.get('error');
             errorDescription = urlParams.get('error_description');
-            console.log('Parsed from hash - access_token:', accessToken ? 'Found' : 'Not found');
+            
+            console.log('Hash params - access_token:', accessToken ? 'Found' : 'Not found');
+            console.log('Hash params - refresh_token:', refreshToken ? 'Found' : 'Not found');
+            console.log('All hash params:', Array.from(urlParams.keys()));
         }
 
         // Debug: Log all URL parameters
-        console.log('OAuth Callback Debug:');
+        console.log('OAuth Callback Debug Summary:');
         console.log('URL:', window.location.href);
-        console.log('Access Token:', accessToken ? 'Present' : 'Missing');
+        console.log('Access Token:', accessToken ? ('Present - ' + accessToken.substring(0, 50) + '...') : 'Missing');
         console.log('Refresh Token:', refreshToken ? 'Present' : 'Missing');
         console.log('Error:', error);
         console.log('Error Description:', errorDescription);
-        console.log('All URL params:', Object.fromEntries(urlParams));
         
         // Also display debug info on the page
         const debugInfo = document.createElement('div');
