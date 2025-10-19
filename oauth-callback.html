@@ -202,6 +202,19 @@
                 console.log('Method 3 failed (sessionStorage not available):', e);
             }
             
+            // Method 4: Store in localStorage as additional fallback
+            try {
+                console.log('Method 4: Storing in localStorage');
+                localStorage.setItem('figma-oauth-result', JSON.stringify({
+                    type: 'oauth-success',
+                    data: authData,
+                    timestamp: Date.now()
+                }));
+                console.log('Data stored in localStorage');
+            } catch (e) {
+                console.log('Method 4 failed (localStorage not available):', e);
+            }
+            
             if (messageSent) {
                 showSuccess();
             } else {
