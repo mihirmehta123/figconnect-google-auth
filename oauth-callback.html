@@ -236,23 +236,19 @@
                     }
                 }, 5000);
             } else {
-                // Since storage is disabled in data: URLs, we need a different approach
-                console.log('All communication methods failed, trying URL parameter approach...');
+                // If no communication method worked, show success and let user close manually
+                console.log('All communication methods failed, showing manual close instructions...');
+                showSuccess();
+                document.getElementById('success').innerHTML = '<div class="success">✓ Authentication successful!</div><div class="message">Please close this window to complete login.</div>';
                 
-                // Create a redirect URL that will trigger the main plugin to check for auth data
-                // We'll encode the auth data in the URL fragment
-                const authDataEncoded = encodeURIComponent(JSON.stringify(authData));
-                const redirectUrl = 'data:text/html,<html><body><script>parent.postMessage({type:"oauth-success",data:' + JSON.stringify(authData) + '},"*");setTimeout(()=>window.close(),100);</script></body></html>';
-                
-                try {
-                    console.log('Attempting redirect with auth data...');
-                    window.location.href = redirectUrl;
-                } catch (e) {
-                    console.log('Redirect failed:', e);
-                    // Show success with instructions to close
-                    showSuccess();
-                    document.getElementById('success').innerHTML = '<div class="success">✓ Authentication successful!</div><div class="message">Please close this window to complete login.</div>';
-                }
+                // Try to close the window after a delay
+                setTimeout(() => {
+                    try {
+                        window.close();
+                    } catch (e) {
+                        console.log('Could not auto-close window:', e);
+                    }
+                }, 3000);
             }
         } else {
             showError('No authentication data received. Check console for details.');
