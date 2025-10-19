@@ -225,31 +225,118 @@
                 console.log('Method 4 failed (localStorage not available):', e);
             }
             
-            if (messageSent) {
-                showSuccess();
-                // Try to close the window after a longer delay to ensure messages are sent
-                setTimeout(() => {
-                    try {
-                        window.close();
-                    } catch (e) {
-                        console.log('Could not auto-close window:', e);
-                    }
-                }, 5000);
-            } else {
-                // If no communication method worked, show success and let user close manually
-                console.log('All communication methods failed, showing manual close instructions...');
-                showSuccess();
-                document.getElementById('success').innerHTML = '<div class="success">✓ Authentication successful!</div><div class="message">Please close this window to complete login.</div>';
-                
-                // Try to close the window after a delay
-                setTimeout(() => {
-                    try {
-                        window.close();
-                    } catch (e) {
-                        console.log('Could not auto-close window:', e);
-                    }
-                }, 3000);
+            // Create a Figma URL with auth data to open the plugin
+            console.log('Creating Figma callback URL with auth data...');
+            
+            // Encode auth data as base64 for clean URL transmission
+            const authDataJson = JSON.stringify(authData);
+            const authDataBase64 = btoa(authDataJson);
+            
+            // Create a Figma URL that will open the plugin with auth data
+            // Figma plugins can be opened with: figma://plugin/{plugin-id}?param=value
+            // Since we don't have a specific plugin ID, we'll create a URL that can be manually opened
+            const figmaUrl = `figma://callback?auth=${authDataBase64}`;
+            
+            // Show success message with instructions and a button to open Figma
+            showSuccess();
+            document.getElementById('success').innerHTML = `
+                <div class="success">✓ Authentication successful!</div>
+                <div class="message">
+                    <p><strong>🎉 Google login successful!</strong></p>
+                    <p><strong>Next step:</strong></p>
+                    <p style="font-size: 16px; margin: 20px 0;">
+                        <button id="open-figma-btn" style="
+                            background: #18A0FB;
+                            color: white;
+                            border: none;
+                            padding: 12px 24px;
+                            font-size: 14px;
+                            font-weight: 600;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            box-shadow: 0 2px 8px rgba(24, 160, 251, 0.3);
+                        ">
+                            Click here to return to Figma
+                        </button>
+                    </p>
+                    <p><em>After clicking, close this window and go back to your Figma plugin.</em></p>
+                    <p style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 4px; font-family: monospace; font-size: 12px; word-break: break-all;">
+                        Auth Token: ${authData.access_token.substring(0, 30)}...
+                    </p>
+                </div>
+            `;
+            
+            // Store auth data for the main plugin to retrieve
+            console.log('Storing auth data for main plugin...');
+            console.log('Auth data:', authData);
+            
+            // Try multiple storage methods
+            try {
+                // Method 1: Store in window.opener
+                if (window.opener && !window.opener.closed) {
+                    window.opener.figmaOAuthData = authData;
+                    console.log('Stored auth data in window.opener.figmaOAuthData');
+                    
+                    // Try to trigger a postMessage one more time
+                    window.opener.postMessage({
+                        type: 'oauth-success',
+                        data: authData
+                    }, '*');
+                    console.log('Sent final postMessage to opener');
+                }
+            } catch (e) {
+                console.log('Could not store in window.opener:', e);
             }
+            
+            // Method 2: Try to use window.name to pass data
+            try {
+                window.name = 'figma-oauth-success:' + authDataBase64;
+                console.log('Stored auth data in window.name');
+            } catch (e) {
+                console.log('Could not store in window.name:', e);
+            }
+            
+            // Add click handler for the button
+            setTimeout(() => {
+                const btn = document.getElementById('open-figma-btn');
+                if (btn) {
+                    btn.onclick = function() {
+                        console.log('Opening Figma with auth data...');
+                        
+                        // Try to trigger the opener to process the auth data
+                        try {
+                            if (window.opener && !window.opener.closed) {
+                                window.opener.focus();
+                                window.opener.postMessage({
+                                    type: 'oauth-success',
+                                    data: authData
+                                }, '*');
+                                
+                                // Try to call a function directly
+                                if (window.opener.processGoogleAuthResult) {
+                                    window.opener.processGoogleAuthResult(authData);
+                                }
+                            }
+                        } catch (e) {
+                            console.log('Could not communicate with opener:', e);
+                        }
+                        
+                        btn.textContent = '✓ Returning to Figma...';
+                        btn.disabled = true;
+                        btn.style.opacity = '0.7';
+                        
+                        setTimeout(() => {
+                            try {
+                                window.close();
+                            } catch (e) {
+                                document.getElementById('success').innerHTML += '<p style="color: #666; margin-top: 10px;">Please close this window manually.</p>';
+                            }
+                        }, 1000);
+                    };
+                }
+            }, 100);
+            
+            console.log('Authentication complete. User should click button to return to Figma.');
         } else {
             showError('No authentication data received. Check console for details.');
         }
