@@ -73,6 +73,27 @@
         const error = urlParams.get('error');
         const errorDescription = urlParams.get('error_description');
 
+        // Debug: Log all URL parameters
+        console.log('OAuth Callback Debug:');
+        console.log('URL:', window.location.href);
+        console.log('Access Token:', accessToken ? 'Present' : 'Missing');
+        console.log('Refresh Token:', refreshToken ? 'Present' : 'Missing');
+        console.log('Error:', error);
+        console.log('Error Description:', errorDescription);
+        console.log('All URL params:', Object.fromEntries(urlParams));
+        
+        // Also display debug info on the page
+        const debugInfo = document.createElement('div');
+        debugInfo.style.cssText = 'position: fixed; top: 10px; left: 10px; background: #f0f0f0; padding: 10px; border: 1px solid #ccc; font-family: monospace; font-size: 12px; z-index: 1000; max-width: 300px;';
+        debugInfo.innerHTML = `
+            <strong>Debug Info:</strong><br>
+            URL: ${window.location.href}<br>
+            Access Token: ${accessToken ? 'Present' : 'Missing'}<br>
+            Error: ${error || 'None'}<br>
+            Error Desc: ${errorDescription || 'None'}
+        `;
+        document.body.appendChild(debugInfo);
+
         function showSuccess() {
             document.getElementById('loading').style.display = 'none';
             document.getElementById('success').style.display = 'block';
@@ -82,13 +103,14 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('error').style.display = 'block';
             document.getElementById('error-message').textContent = message;
+            console.error('OAuth Error:', message);
         }
 
         // Handle the OAuth result
         if (error) {
             showError(errorDescription || error);
         } else if (accessToken) {
-            // Store the auth data in localStorage so the parent window can access it
+            // Prepare the auth data
             const authData = {
                 access_token: accessToken,
                 refresh_token: refreshToken,
@@ -96,20 +118,39 @@
                 token_type: urlParams.get('token_type')
             };
             
-            localStorage.setItem('supabase.auth.token', JSON.stringify(authData));
-            showSuccess();
+            console.log('OAuth success, auth data:', authData);
             
-            // Try to close the window after a short delay
-            setTimeout(() => {
-                try {
-                    window.close();
-                } catch (e) {
-                    // Window might not be closeable, that's okay
+            // Try to communicate with parent window
+            try {
+                if (window.opener) {
+                    console.log('Sending auth data to parent window');
+                    window.opener.postMessage({
+                        type: 'oauth-success',
+                        data: authData
+                    }, '*');
+                    
+                    showSuccess();
+                    
+                    // Try to close the window after a short delay
+                    setTimeout(() => {
+                        try {
+                            window.close();
+                        } catch (e) {
+                            console.log('Could not close window:', e);
+                        }
+                    }, 2000);
+                } else {
+                    console.log('No parent window found');
+                    showError('No parent window found. Please close this window and try again.');
                 }
-            }, 2000);
+            } catch (e) {
+                console.log('Could not communicate with parent window:', e);
+                showError('Could not communicate with parent window. Please close this window and try again.');
+            }
         } else {
-            showError('No authentication data received');
+            showError('No authentication data received. Check console for details.');
         }
     </script>
 </body>
 </html>
+
