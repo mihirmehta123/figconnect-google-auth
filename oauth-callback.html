@@ -156,33 +156,68 @@
             
             console.log('OAuth success, auth data:', authData);
             
-            // Try to communicate with parent window
+            // Try multiple methods to communicate with parent window
+            let messageSent = false;
+            
+            // Method 1: Try window.opener.postMessage
             try {
-                if (window.opener) {
-                    console.log('Sending auth data to parent window');
+                if (window.opener && !window.opener.closed) {
+                    console.log('Method 1: Sending via window.opener.postMessage');
                     window.opener.postMessage({
                         type: 'oauth-success',
                         data: authData
                     }, '*');
-                    
-                    showSuccess();
-                    
-                    // Try to close the window after a short delay
-                    setTimeout(() => {
-                        try {
-                            window.close();
-                        } catch (e) {
-                            console.log('Could not close window:', e);
-                        }
-                    }, 2000);
-                } else {
-                    console.log('No parent window found');
-                    showError('No parent window found. Please close this window and try again.');
+                    messageSent = true;
+                    console.log('Message sent via window.opener');
                 }
             } catch (e) {
-                console.log('Could not communicate with parent window:', e);
-                showError('Could not communicate with parent window. Please close this window and try again.');
+                console.log('Method 1 failed:', e);
             }
+            
+            // Method 2: Try broadcast channel
+            try {
+                console.log('Method 2: Sending via BroadcastChannel');
+                const channel = new BroadcastChannel('figma-oauth');
+                channel.postMessage({
+                    type: 'oauth-success',
+                    data: authData
+                });
+                channel.close();
+                messageSent = true;
+                console.log('Message sent via BroadcastChannel');
+            } catch (e) {
+                console.log('Method 2 failed (BroadcastChannel not supported):', e);
+            }
+            
+            // Method 3: Store in sessionStorage as fallback
+            try {
+                console.log('Method 3: Storing in sessionStorage');
+                sessionStorage.setItem('figma-oauth-result', JSON.stringify({
+                    type: 'oauth-success',
+                    data: authData,
+                    timestamp: Date.now()
+                }));
+                console.log('Data stored in sessionStorage');
+            } catch (e) {
+                console.log('Method 3 failed (sessionStorage not available):', e);
+            }
+            
+            if (messageSent) {
+                showSuccess();
+            } else {
+                // Show success with instructions to close
+                showSuccess();
+                document.getElementById('success').innerHTML = '<div class="success">✓ Authentication successful!</div><div class="message">Please close this window to complete login.</div>';
+            }
+            
+            // Try to close the window after a short delay
+            setTimeout(() => {
+                try {
+                    window.close();
+                } catch (e) {
+                    console.log('Could not auto-close window:', e);
+                }
+            }, 2000);
         } else {
             showError('No authentication data received. Check console for details.');
         }
