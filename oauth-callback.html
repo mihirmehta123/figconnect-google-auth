@@ -302,15 +302,27 @@
                 if (confirm('Authentication successful! Click OK to open Figma and complete the login process.')) {
                     console.log('User clicked OK, opening Figma app...');
                     
-                    // Try to send auth data to opener before opening Figma
+                    // Try to send auth data to opener MULTIPLE times before opening Figma
                     try {
                         if (window.opener && !window.opener.closed) {
-                            window.opener.figmaOAuthData = authData;
-                            window.opener.postMessage({
-                                type: 'oauth-success',
-                                data: authData
-                            }, '*');
-                            console.log('Sent auth data to opener');
+                            // Send multiple times to ensure it's received
+                            for (let i = 0; i < 5; i++) {
+                                setTimeout(() => {
+                                    try {
+                                        window.opener.figmaOAuthData = authData;
+                                        window.opener.pendingOAuthData = authData;
+                                        window.opener.postMessage({
+                                            type: 'oauth-success',
+                                            data: authData
+                                        }, '*');
+                                        console.log('Sent auth data to opener (attempt ' + (i + 1) + ')');
+                                    } catch (e) {
+                                        console.log('Send attempt ' + (i + 1) + ' failed:', e);
+                                    }
+                                }, i * 200);
+                            }
+                        } else {
+                            console.log('window.opener is not available');
                         }
                     } catch (e) {
                         console.log('Could not communicate with opener:', e);
@@ -331,31 +343,34 @@
                         </div>
                     `;
                     
-                    // Try to open Figma using an invisible iframe (more reliable)
-                    try {
-                        const iframe = document.createElement('iframe');
-                        iframe.style.display = 'none';
-                        iframe.src = 'figma://';
-                        document.body.appendChild(iframe);
-                        console.log('Opening Figma via iframe');
-                        
-                        // Clean up iframe after a delay
-                        setTimeout(() => {
-                            document.body.removeChild(iframe);
-                        }, 1000);
-                    } catch (e) {
-                        console.log('Could not open Figma via iframe:', e);
-                    }
-                    
-                    // Also try direct window.location as fallback
+                    // Wait a bit for messages to be sent, then open Figma
                     setTimeout(() => {
+                        // Try to open Figma using an invisible iframe (more reliable)
                         try {
-                            window.location.href = 'figma://';
-                            console.log('Opening Figma via window.location');
+                            const iframe = document.createElement('iframe');
+                            iframe.style.display = 'none';
+                            iframe.src = 'figma://';
+                            document.body.appendChild(iframe);
+                            console.log('Opening Figma via iframe');
+                            
+                            // Clean up iframe after a delay
+                            setTimeout(() => {
+                                document.body.removeChild(iframe);
+                            }, 1000);
                         } catch (e) {
-                            console.log('Could not open Figma via window.location:', e);
+                            console.log('Could not open Figma via iframe:', e);
                         }
-                    }, 100);
+                        
+                        // Also try direct window.location as fallback
+                        setTimeout(() => {
+                            try {
+                                window.location.href = 'figma://';
+                                console.log('Opening Figma via window.location');
+                            } catch (e) {
+                                console.log('Could not open Figma via window.location:', e);
+                            }
+                        }, 100);
+                    }, 1500); // Wait 1.5 seconds for all messages to be sent
                     
                     // Don't auto-close the window - let user close it manually after Figma opens
                 } else {
