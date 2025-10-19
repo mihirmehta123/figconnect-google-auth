@@ -316,32 +316,48 @@
                         console.log('Could not communicate with opener:', e);
                     }
                     
-                    // Open Figma app using figma:// URL scheme
-                    // This will open the Figma desktop app
-                    window.location.href = 'figma://';
-                    
-                    // Update the UI
+                    // Update the UI first
                     document.getElementById('success').innerHTML = `
                         <div class="success">✓ Opening Figma...</div>
                         <div class="message">
-                            <p><strong>If Figma didn't open automatically:</strong></p>
+                            <p><strong>Figma is opening...</strong></p>
+                            <p>If Figma didn't open automatically, <a href="figma://" style="color: #18A0FB; text-decoration: underline;">click here to open Figma</a>.</p>
+                            <p style="margin-top: 20px;">Then:</p>
                             <ol>
-                                <li>Open Figma manually</li>
-                                <li>Go back to your plugin</li>
-                                <li>You should be logged in</li>
+                                <li>Go back to your Figma plugin</li>
+                                <li>You should be logged in automatically</li>
                             </ol>
-                            <p>You can close this window now.</p>
+                            <p style="margin-top: 20px; color: #666;">You can close this window after Figma opens.</p>
                         </div>
                     `;
                     
-                    // Try to close the window after a delay
+                    // Try to open Figma using an invisible iframe (more reliable)
+                    try {
+                        const iframe = document.createElement('iframe');
+                        iframe.style.display = 'none';
+                        iframe.src = 'figma://';
+                        document.body.appendChild(iframe);
+                        console.log('Opening Figma via iframe');
+                        
+                        // Clean up iframe after a delay
+                        setTimeout(() => {
+                            document.body.removeChild(iframe);
+                        }, 1000);
+                    } catch (e) {
+                        console.log('Could not open Figma via iframe:', e);
+                    }
+                    
+                    // Also try direct window.location as fallback
                     setTimeout(() => {
                         try {
-                            window.close();
+                            window.location.href = 'figma://';
+                            console.log('Opening Figma via window.location');
                         } catch (e) {
-                            console.log('Could not auto-close window');
+                            console.log('Could not open Figma via window.location:', e);
                         }
-                    }, 2000);
+                    }, 100);
+                    
+                    // Don't auto-close the window - let user close it manually after Figma opens
                 } else {
                     console.log('User cancelled, showing manual instructions');
                     // User clicked Cancel, show manual instructions
