@@ -66,12 +66,28 @@
     </div>
 
     <script>
-        // Parse URL parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const accessToken = urlParams.get('access_token');
-        const refreshToken = urlParams.get('refresh_token');
-        const error = urlParams.get('error');
-        const errorDescription = urlParams.get('error_description');
+        // Parse URL parameters - check both query params and fragments
+        let urlParams;
+        let accessToken, refreshToken, error, errorDescription;
+        
+        // First try query parameters
+        if (window.location.search) {
+            urlParams = new URLSearchParams(window.location.search);
+            accessToken = urlParams.get('access_token');
+            refreshToken = urlParams.get('refresh_token');
+            error = urlParams.get('error');
+            errorDescription = urlParams.get('error_description');
+        }
+        
+        // If no query params, try URL fragment (hash)
+        if (!accessToken && window.location.hash) {
+            const hashParams = new URLSearchParams(window.location.hash.substring(1));
+            accessToken = hashParams.get('access_token');
+            refreshToken = hashParams.get('refresh_token');
+            error = hashParams.get('error');
+            errorDescription = hashParams.get('error_description');
+            urlParams = hashParams;
+        }
 
         // Debug: Log all URL parameters
         console.log('OAuth Callback Debug:');
@@ -88,6 +104,8 @@
         debugInfo.innerHTML = `
             <strong>Debug Info:</strong><br>
             URL: ${window.location.href}<br>
+            Query Params: ${window.location.search || 'None'}<br>
+            Hash Fragment: ${window.location.hash || 'None'}<br>
             Access Token: ${accessToken ? 'Present' : 'Missing'}<br>
             Error: ${error || 'None'}<br>
             Error Desc: ${errorDescription || 'None'}
@@ -153,4 +171,3 @@
     </script>
 </body>
 </html>
-
